@@ -17,21 +17,39 @@ navigation.querySelectorAll('a').forEach((link) => {
 
 document.querySelector('#year').textContent = new Date().getFullYear();
 
-document.querySelector('#contact-form').addEventListener('submit', (event) => {
+document.querySelector('#contact-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  const details = new FormData(form);
-  const subject = `Website enquiry from ${details.get('business')}`;
-  const body = [
-    `Name: ${details.get('name')}`,
-    `Business: ${details.get('business')}`,
-    `Email: ${details.get('email')}`,
-    `Phone: ${details.get('phone') || 'Not provided'}`,
-    '',
-    'What they have in mind:',
-    details.get('message'),
-  ].join('\n');
-  const mailto = `mailto:ryanchandupa@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  document.querySelector('.form-success').textContent = 'Your email app is opening with your note ready to send.';
-  window.location.href = mailto;
+  const status = document.querySelector('.form-success');
+  const submitButton = form.querySelector('.submit-button');
+  const accessKey = form.elements.access_key.value.trim();
+
+  if (!accessKey || accessKey === 'YOUR_WEB3FORMS_ACCESS_KEY') {
+    status.textContent = 'The contact form is almost ready. Add your Web3Forms access key to connect it to your inbox.';
+    status.classList.add('form-error');
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.querySelector('span').textContent = '…';
+  status.textContent = 'Sending your note…';
+  status.classList.remove('form-error');
+
+  try {
+    const response = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(form))),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) throw new Error(result.message || 'Please try again in a moment.');
+    status.textContent = 'Thank you! We received your note.';
+    form.reset();
+  } catch (error) {
+    status.textContent = error.message || 'Sorry, your note could not be sent. Please email us directly.';
+    status.classList.add('form-error');
+  } finally {
+    submitButton.disabled = false;
+    submitButton.querySelector('span').textContent = '↗';
+  }
 });
